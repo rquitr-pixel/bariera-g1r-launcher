@@ -31,6 +31,7 @@ function Typ($t){ [Windows.Forms.SendKeys]::SendWait(($t -replace '([+^%~(){}\[\
 $P=@{ first=@(0.313,0.256); search=@(0.84,0.121); pass=@(0.855,0.827); join=@(0.855,0.901) }
 try{
   $pw=[Console]::In.ReadLine(); if([string]::IsNullOrEmpty($pw)){ Out 'FAIL' @{step='password-missing'}; exit 5 }
+  if(GamePid){ Out 'FAIL' @{step='game-already-running'}; exit 7 }
   if(-not (LPids)){ Start-Process -FilePath $Exe -WorkingDirectory (Split-Path $Exe) | Out-Null; Out 'LAUNCHED' } else { Out 'ALREADY_RUNNING' }
   $dl=(Get-Date).AddSeconds($Timeout); $h=$null
   while((Get-Date) -lt $dl){ $h=GetWin; if($h){break}; Start-Sleep -m 700 }
@@ -44,13 +45,11 @@ try{
   Start-Sleep -m 1500
   ClickRel $h $P.pass[0] $P.pass[1]; ClickRel $h $P.pass[0] $P.pass[1]; [Windows.Forms.SendKeys]::SendWait('^a'); [Windows.Forms.SendKeys]::SendWait('{DEL}'); Typ $pw; Start-Sleep -m 500; $pw=$null; Out 'PASSWORD_SENT'
   ClickRel $h $P.join[0] $P.join[1]; Out 'CONNECT' @{via='click'}
-  $dl=(Get-Date).AddSeconds($Timeout+60); $gp=$null; $retry=(Get-Date).AddSeconds(12); $tries=0
-  while((Get-Date) -lt $dl){ $gp=GamePid; if($gp){break}; if((Get-Date) -gt $retry -and $tries -lt 2 -and -not (Get-Process G1RMP-Anticheat -EA 0)){ $tries++; ClickRel $h $P.join[0] $P.join[1]; Out 'CONNECT_RETRY' @{n=$tries}; $retry=(Get-Date).AddSeconds(12) }; Start-Sleep -m 800 }
+  # Join clicked ONCE. No further clicks/keys/window changes while the official launcher + anti-cheat start the game
+  # (re-clicking Join or touching windows during the protected start broke it: anti-cheat code 25).
+  $dl=(Get-Date).AddSeconds($Timeout+90); $gp=$null
+  while((Get-Date) -lt $dl){ $gp=GamePid; if($gp){break}; Start-Sleep -m 1000 }
   if(-not $gp){ Out 'FAIL' @{step='game'}; exit 6 }
   Out 'GAME' @{pid=$gp}
-  # success only if the game survives ~60 s after join (server rejects bad password at hello -> game exits)
-  $min=$false; $alive=(Get-Date).AddSeconds(60)
-  while((Get-Date) -lt $alive){ Start-Sleep 2; if(-not (Get-Process -Id $gp -EA 0)){ Out 'FAIL' @{step='rejected'}; exit 8 }; if(-not $min -and (Get-Date) -gt $alive.AddSeconds(-50)){ $h=GetWin; if($h){ [BW]::ShowWindow($h,6)|Out-Null }; $min=$true } }
-  Out 'OFFICIAL_MINIMIZED'
   Out 'DONE'; exit 0
 } catch { Out 'ERROR' @{msg="$_"}; exit 9 }

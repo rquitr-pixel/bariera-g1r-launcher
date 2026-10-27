@@ -209,6 +209,7 @@ ipcMain.handle('play', async () => {
       send(m.ev, m);
       if (m.ev === 'FAIL' && m.step === 'rejected' && win) { win.restore(); win.focus(); }
       if (m.ev === 'GAME') setTimeout(() => win && win.minimize(), 1500);
+      if (m.ev === 'FAIL' && m.step === 'game-already-running' && win) { win.restore(); win.focus(); }
     } });
   ps.stderr.on('data', d => log({ stderr: String(d).slice(0, 400) }));
   ps.on('exit', code => { running = null; send('EXIT', { code }); });
