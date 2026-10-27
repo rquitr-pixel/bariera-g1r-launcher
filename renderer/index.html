@@ -1,0 +1,59 @@
+<!doctype html><html><head><meta charset=utf-8><meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>Bariera: Pierwsze Lata</title><link rel=stylesheet href=style.css></head><body>
+<div id=root style="position:absolute;inset:0">
+<img class=a src=assets/crest_v9.png style="left:0;top:0;width:512px">
+<img class=a src=assets/frame_v7.png style="left:0;top:0;width:1280px;height:720px">
+<div class="a hero" id=hero style="left:410px;top:262px;width:425px;height:118px">
+ <div class=slides id=slides></div>
+ <button class="hero-arrow prev" id=hero-prev aria-label="Poprzedni">&#8249;</button><button class="hero-arrow next" id=hero-next aria-label="Następny">&#8250;</button>
+ <div class=hero-counter id=hero-counter></div>
+ <div class=indicators id=indicators></div></div>
+<div class="a glass" id=st style="left:742px;top:172px;width:136px;padding:8px 10px;font-size:12.5px">
+ <div style="font-family:Cinzel;font-weight:700;font-size:12px;color:#e8cf8e">BARIERA #1</div>
+ <div><span class=dot></span><span id=stTxt data-i="checking"></span></div><div style="color:#a9c9f0" id=stPing>—</div>
+ <div class=bar style="margin-top:5px;height:5px"><i id=stBar style="width:0%;background:#4fd36b;box-shadow:none;transition:width .6s"></i></div></div>
+<img class=a src=assets/logo_v9.png style="left:107px;top:28px;width:310px;z-index:2">
+<div class=a style="left:292px;top:400px;width:478px">
+ <div class=tabs style="border-bottom:1px solid #ffffff18;margin-bottom:8px"><span class=on data-tab=0 data-i="t0"></span><span data-tab=1 data-i="t1"></span><span data-tab=2 data-i="t2"></span><span data-tab=3 data-i="t3"></span></div>
+ <div style="height:86px">
+  <div class="tabc on" data-c=0 style="gap:10px"><div style="flex:1.25">
+   <div class=row><span class="tag t1" data-i="tgF"></span><b data-i="n1"></b><span class=dt>27.10</span></div>
+   <div class=row><span class="tag t2" data-i="tgP"></span><b data-i="n2"></b><span class=dt>24.10</span></div>
+   <div class=row><span class="tag t3" data-i="tgE"></span><b data-i="n3"></b><span class=dt>20.10</span></div></div>
+   <div class=card style="flex:1;padding:7px 10px"><h4><span data-i="next"></span></h4>
+   <div class=row style="padding:2px 0"><b data-i="rst"></b><span class="dt cd" id=cd>--:--:--</span></div>
+   <div class=row style="padding:2px 0"><b data-i="clk"></b><span class=dt id=clock>--:--</span></div></div></div>
+  <div class="tabc" data-c=1 style="flex-direction:column"><div class=row><span class="tag t2">0.1.9</span><b data-i="c1"></b></div><div class=row><span class="tag t2">LUA</span><b data-i="c2"></b></div><div class=row><span class="tag t3">VPS</span><b data-i="c3"></b></div></div>
+  <div class="tabc" data-c=2 style="flex-direction:column"><div class=row><span class="tag t3" data-i="tgE"></span><b data-i="e1"></b><span class=dt data-i="e1d"></span></div><div class=row><span class="tag t1" data-i="tgF"></span><b data-i="e2"></b><span class=dt data-i="e2d"></span></div></div>
+  <div class="tabc" data-c=3 style="flex-direction:column"><div class=step><em>1</em><span data-i="s1"></span></div><div class=step><em>2</em><span data-i="s2"></span></div><div class=step><em>3</em><span data-i="s3"></span></div></div>
+ </div>
+ <div class=card style="margin-top:6px;padding:7px 11px;display:flex;align-items:center;gap:10px">
+  <div style="flex:1"><div style="font-family:Cinzel;font-size:10.5px;letter-spacing:2px;color:#8fc3ff" data-i="gate"></div>
+   <div class=addr id=addr>57.129.157.207:7777</div>
+   <div style="font-size:11.5px;margin-top:1px"><span id=lstate></span> · <span id=fstate></span></div></div>
+  <span class="btn2 hit" id=copyBtn data-i="copy" style="margin:0"></span></div>
+ <div style="margin-top:9px;display:flex;align-items:center"><span class="chk hit" id=auto style="margin-left:34px"><i>✓</i><span data-i="auto"></span></span><span class="btn2 hit" id=pickBtn data-i="pick"></span><span class="btn2 hit" id=bugBtn data-i="bug"></span></div>
+</div>
+<div class="a card" id=toast></div>
+<div class="a" id=settings>
+ <h4 style="font-size:15px"><span data-i="setT"></span><small class=hit id=setClose style="font-size:13px" data-i="closeS"></small></h4>
+ <label data-i="lpath"></label><div style="display:flex;gap:6px"><input id=inPath readonly><span class="btn2 hit" id=pickBtn2 data-i="pick" style="white-space:nowrap;margin:0"></span></div>
+ <label data-i="lpw"></label><div><span id=pwState style="font-size:12.5px;margin-right:8px"></span><span class="btn2 hit" id=pwForget data-i="pwForget"></span></div>
+ <label data-i="lsize"></label><div><span class="btn2 hit" data-sc=0.85>85%</span><span class="btn2 hit" data-sc=1>100%</span><span class="btn2 hit" data-sc=1.15>115%</span><span class="btn2 hit" data-sc=1.3>130%</span></div>
+</div>
+<div class=a id=pwbox style="left:292px;top:330px;width:478px;z-index:10;display:none;padding:14px 16px;background:radial-gradient(ellipse at 50% 0,#2a1d17f7,#0d0a09fa 70%);border:1px solid #8a6a3a;box-shadow:0 0 0 2px #1a0c0a,0 0 0 3px #6e2a20,0 10px 30px #000,inset 0 0 30px #000">
+ <h4 style="font-size:14px" data-i="pwT"></h4><div style="font-size:12.5px;margin-bottom:8px" data-i="pwS"></div>
+ <div style="display:flex;gap:6px"><input id=pwIn type=password style="flex:1;background:#0a0807;border:1px solid #6e3a2e;border-radius:4px;color:#f3e6c8;font:13px Alegreya;padding:4px 7px;outline:none;-webkit-user-select:text"><span class="btn2 hit" id=pwOk data-i="pwOk" style="margin:0"></span><span class="btn2 hit" id=pwNo data-i="pwNo" style="margin:0"></span></div>
+ <div class="chk hit on" id=pwRem style="margin-top:8px"><i>✓</i><span data-i="pwRem"></span></div></div>
+<img class=a src=assets/smoke.png style="left:735px;top:440px;width:560px;z-index:3;opacity:.6;filter:brightness(.75) saturate(1.2)">
+<img class=a src=assets/guard_fade.png style="left:752px;top:36px;height:640px;z-index:2;filter:drop-shadow(-8px 0 14px #000a)">
+<div class=a id=flaskGlow style="left:765px;top:478px;z-index:3;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,#ff2a2a66,transparent 65%);pointer-events:none"></div>
+<canvas class=a id=flask style="left:792px;top:486px;z-index:4;width:125px;height:175px;filter:drop-shadow(0 0 14px #ff3a3a);pointer-events:none"></canvas>
+<div class="a hit" id=flaskHit style="left:806px;top:540px;width:98px;height:120px;z-index:6;border-radius:45%"></div>
+<div class=a id=graj style="left:770px;top:645px;z-index:5;width:170px;text-align:center;font-family:'Cinzel Decorative';font-weight:700;font-size:22px;color:#fff;letter-spacing:3px;text-shadow:0 0 10px #ff2a2a,0 2px 4px #000" data-i="play"></div>
+<div class=a style="left:428px;top:140px;display:flex;gap:8px;align-items:center;z-index:3">
+ <div class="md hit" data-link=strona data-t="tStrona"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#f0d79a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V10l3-2V5h2v2l2-1.5L14 7V5h2v3l3 2v11z"/><path d="M10 21v-4a2 2 0 0 1 4 0v4"/></svg></div><div class="md hit" data-link=discord data-t="tDiscord"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#f0d79a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7c3-1.5 7-1.5 10 0l2 9c-2 1.6-4 2-5 2l-1-2m-2 0-1 2c-1 0-3-.4-5-2z"/><circle cx="9.5" cy="12.5" r="1.2"/><circle cx="14.5" cy="12.5" r="1.2"/></svg></div><div class="md hit" data-link=zasady data-t="tZasady"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#f0d79a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h11a2 2 0 0 1 0 4h-1v10a2 2 0 0 1-2 2H6a2 2 0 0 1 0-4h1z"/><path d="M7 16V4a2 2 0 0 0-2 2v1h2"/><path d="M10 9h4M10 12h4"/></svg></div><div class="md hit" data-link=lore data-t="tLore"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#f0d79a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5c3-1 6-1 8 1 2-2 5-2 8-1v13c-3-1-6-1-8 1-2-2-5-2-8-1z"/><path d="M12 6v13"/></svg></div><div class="md hit" id=gear data-t="tSet"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#f0d79a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></div>
+ <div class=lg><span id=lPL>PL</span><span id=lEN>EN</span></div></div>
+<div class=a style="left:858px;top:116px;display:flex;gap:6px;z-index:3"><div class="wcw hit" id=minBtn><div class=wc>–</div></div><div class="wcw wcx hit" id=closeBtn><div class=wc>✕</div></div></div>
+</div>
+<script src=i18n.js></script><script src=flask.js></script><script src=app.js></script><script src=slider.js></script></body></html>

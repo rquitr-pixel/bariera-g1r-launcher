@@ -1,0 +1,5 @@
+{
+  "server": { "host": "57.129.157.207", "port": 7777, "probePort": 7780, "name": "Bariera" },
+  "links": { "strona": "https://g1r-mp.com", "discord": "https://discord.gg/kfBdN3ZctJ", "zasady": "https://g1r-mp.com", "lore": "https://g1r-mp.com" },
+  "teksty": { "pl": {}, "en": {} }
+}

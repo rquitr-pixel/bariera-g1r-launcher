@@ -1,0 +1,72 @@
+{
+  "name": "bariera-launcher",
+  "productName": "Bariera Pierwsze Lata",
+  "version": "1.0.0",
+  "description": "Launcher serwera Bariera: Pierwsze Lata (G1R:MP)",
+  "main": "main.js",
+  "author": "Bariera",
+  "scripts": {
+    "start": "electron .",
+    "dist:win:public": "electron-builder --win nsis --x64 --config electron-builder.public.js"
+  },
+  "build": {
+    "appId": "pl.bariera.launcher",
+    "productName": "Bariera Pierwsze Lata",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "requireAdministrator"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "helper",
+        "to": "helper"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Bariera Pierwsze Lata",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "language": "1045",
+      "artifactName": "Bariera-Launcher-Setup.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "rquitr-pixel",
+        "repo": "bariera-g1r-launcher",
+        "releaseType": "release"
+      }
+    ],
+    "asar": true
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "repository": "https://github.com/rquitr-pixel/bariera-g1r-launcher",
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  }
+}
