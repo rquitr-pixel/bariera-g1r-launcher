@@ -1,7 +1,7 @@
 {
   "name": "bariera-launcher",
   "productName": "Bariera Pierwsze Lata",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Launcher serwera Bariera: Pierwsze Lata (G1R:MP)",
   "main": "main.js",
   "author": "Bariera",

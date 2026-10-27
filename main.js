@@ -5,7 +5,7 @@ const path = require('path'), fs = require('fs'), net = require('net'), { spawn 
 const SERVER = { host: '57.129.157.207', port: 7777, probePort: 7780, name: 'Bariera' };
 // remote config (server address, links, texts) read from the public repo; cached locally for offline
 const REMOTE_CFG_URL = 'https://raw.githubusercontent.com/rquitr-pixel/bariera-g1r-launcher/main/config/serwer.json';
-let REMOTE_TEXTS = null;
+let REMOTE_TEXTS = null, REMOTE_PW = '';
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 // ---- built-in links (swap SITE_URL / RULES_URL / LORE_URL when our own site is live) ----
 const SITE_URL = 'https://g1r-mp.com';
@@ -23,11 +23,17 @@ function loadCfg() {
     } }, cfg);
   cfg.links = LINKS; // built-in only, not user-editable
 }
+function hashPw(p) { return require('crypto').createHash('sha256').update(p).digest('hex').slice(0, 16); }
 function applyRemote(r) {
   if (!r || typeof r !== 'object') return;
   if (r.server && r.server.host) Object.assign(SERVER, r.server);
   if (r.links) { LINKS = Object.assign({}, LINKS, r.links); cfg.links = LINKS; }
   if (r.teksty) REMOTE_TEXTS = r.teksty;
+  if (typeof r.serverPassword === 'string' && r.serverPassword) {
+    // remote password changed since last seen -> drop the manual override so 'Graj' keeps working
+    if (cfg.remotePwSeen && cfg.remotePwSeen !== hashPw(r.serverPassword)) { delete cfg.pwEnc; delete cfg.pwManual; }
+    cfg.remotePwSeen = hashPw(r.serverPassword); REMOTE_PW = r.serverPassword; saveCfg();
+  }
 }
 function fetchRemote() {
   const cache = path.join(app.getPath('userData'), 'serwer-cache.json');
@@ -139,7 +145,7 @@ ipcMain.on('minimize', () => win && win.minimize());
 ipcMain.on('close', () => app.quit());
 ipcMain.handle('state', () => ({
   cfg, server: SERVER, texts: REMOTE_TEXTS, launcher: detectLauncher(), fav: favouriteState(),
-  hasPw: !!cfg.pwEnc, autostart: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false, platform: process.platform
+  hasPw: !!(cfg.pwEnc || REMOTE_PW), autostart: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false, platform: process.platform
 }));
 ipcMain.handle('probe', () => probe());
 ipcMain.handle('set-cfg', (_e, patch) => { Object.assign(cfg, patch); saveCfg();
@@ -160,16 +166,18 @@ const logFile = () => path.join(app.getPath('userData'), 'automation.log');
 function log(o) { try { fs.appendFileSync(logFile(), JSON.stringify(Object.assign({ at: new Date().toISOString() }, o)) + '\n'); } catch {} }
 function helperPath() { const p = path.join(process.resourcesPath || '', 'helper', 'automate.ps1');
   return fs.existsSync(p) ? p : path.join(__dirname, 'helper', 'automate.ps1'); }
-function getPw() { try { return cfg.pwEnc && safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(Buffer.from(cfg.pwEnc, 'base64')) : ''; } catch { return ''; } }
+function savedPw() { try { return cfg.pwEnc && safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(Buffer.from(cfg.pwEnc, 'base64')) : ''; } catch { return ''; } }
+// manual (user-entered) password wins; otherwise the server password from remote config; otherwise any older saved one
+function getPw() { const m = cfg.pwManual ? savedPw() : ''; return m || REMOTE_PW || savedPw(); }
 // one-shot import: %APPDATA%/<app>/import_pw.txt -> encrypted store, file deleted immediately
 function importPw() { const f = path.join(app.getPath('userData'), 'import_pw.txt'); if (!fs.existsSync(f)) return;
   try { const pw = fs.readFileSync(f, 'utf8').replace(/^\uFEFF/, '').trim(); if (pw) setPw(pw); log({ ev: 'PW_IMPORTED', ok: !!cfg.pwEnc }); } catch { log({ ev: 'PW_IMPORT_FAIL' }); }
   try { fs.unlinkSync(f); } catch {} }
-function setPw(pw) { if (pw && safeStorage.isEncryptionAvailable()) { cfg.pwEnc = safeStorage.encryptString(pw).toString('base64'); saveCfg(); } }
+function setPw(pw) { if (pw && safeStorage.isEncryptionAvailable()) { cfg.pwEnc = safeStorage.encryptString(pw).toString('base64'); cfg.pwManual = true; saveCfg(); } }
 let pwResolve = null, running = null;
 ipcMain.on('password', (_e, r) => { if (r && r.remember && r.pw) setPw(r.pw); if (pwResolve) { pwResolve(r && r.pw || ''); pwResolve = null; } });
-ipcMain.handle('forget-password', () => { delete cfg.pwEnc; saveCfg(); return true; });
-ipcMain.handle('has-password', () => !!cfg.pwEnc);
+ipcMain.handle('forget-password', () => { delete cfg.pwEnc; delete cfg.pwManual; saveCfg(); return true; });
+ipcMain.handle('has-password', () => !!(cfg.pwEnc || REMOTE_PW));
 const send = (ev, extra) => { log(Object.assign({ ev }, extra)); win && win.webContents.send('auto-ev', Object.assign({ ev }, extra)); };
 function directConnect(exe) {
   // Hook for a future official direct-connect: cfg.directConnect = { args: ["--connect","{host}:{port}"] } or { uri: "g1rmp://connect/{host}:{port}" }
