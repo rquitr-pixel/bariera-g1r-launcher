@@ -1,9 +1,10 @@
-﻿# Bariera launcher - drives the G1R:MP game client window with ordinary mouse/keyboard input.
+﻿﻿# Bariera launcher - drives the G1R:MP game client window with ordinary mouse/keyboard input.
 # Does only what a person would click. Official authentication stays in the client.
 # Protocol: JSON lines on stdout {"ev":...}; reads the password as the first stdin line (before anything is clicked).
 # Client 0.1.9 is GLFW/OpenGL (no UIA) -> coordinates relative to the window rect (mapped 2026-10-27).
 param([string]$Exe,[string]$ServerName='Bariera',[string]$Address='57.129.157.207:7777',[int]$Timeout=60,[string]$Log,[string]$AfterGame='minimize')
 $ErrorActionPreference='Stop'
+try{
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type @"
 using System;using System.Runtime.InteropServices;
@@ -20,10 +21,11 @@ public struct RECT{public int L,T,R,B;}
 }
 "@
 [BW]::SetProcessDPIAware()|Out-Null
+}catch{ [Console]::Out.WriteLine((@{ev='FAIL';step='addtype';msg="$_".Substring(0,[Math]::Min(200,"$_".Length))}|ConvertTo-Json -Compress)); exit 9 }
 function Out($ev,$extra=@{}){ $o=@{ev=$ev;t=(Get-Date).ToString('HH:mm:ss')}+$extra; $j=($o|ConvertTo-Json -Compress); [Console]::Out.WriteLine($j); [Console]::Out.Flush(); if($Log){Add-Content -Path $Log -Value $j -Encoding UTF8} }
 function LPids(){ @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like 'G1RMP-Launcher*' } | ForEach-Object Id) }
 function GamePid(){ $g=Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like 'G1R-Win64*' } | Select-Object -First 1; if($g){$g.Id} }
-function GetWin(){ $w=[BW]::FindWindow('GLFW30','G1R:MP Launcher'); if($w -ne [IntPtr]::Zero){return $w}; $w=[BW]::FindWindow($null,'G1R:MP Launcher'); if($w -ne [IntPtr]::Zero){return $w}; $null }
+function GetWin(){ $w=[BW]::FindWindow('GLFW30','G1R:MP Launcher'); if($w -ne [IntPtr]::Zero){return $w}; $w=[BW]::FindWindow($null,'G1R:MP Launcher'); if($w -ne [IntPtr]::Zero){return $w}; $p=Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like 'G1RMP-Launcher*' -and $_.MainWindowHandle -ne [IntPtr]::Zero } | Select-Object -First 1; if($p){return $p.MainWindowHandle}; $null }
 function Front($h){ if([BW]::IsIconic($h)){[BW]::ShowWindow($h,9)|Out-Null}; [BW]::SetForegroundWindow($h)|Out-Null; Start-Sleep -m 350 }
 function ClickRel($h,$rx,$ry){ Front $h; $r=New-Object BW+RECT; [BW]::GetWindowRect($h,[ref]$r)|Out-Null; $x=[int]($r.L+($r.R-$r.L)*$rx); $y=[int]($r.T+($r.B-$r.T)*$ry); [BW]::SetCursorPos($x,$y)|Out-Null; Start-Sleep -m 80; [BW]::mouse_event(2,0,0,0,[UIntPtr]::Zero); Start-Sleep -m 60; [BW]::mouse_event(4,0,0,0,[UIntPtr]::Zero); Start-Sleep -m 500 }
 function Typ($t){ [Windows.Forms.SendKeys]::SendWait(($t -replace '([+^%~(){}\[\]])','{$1}')); Start-Sleep -m 300 }
@@ -32,7 +34,8 @@ $P=@{ first=@(0.313,0.256); search=@(0.84,0.121); pass=@(0.855,0.827); join=@(0.
 try{
   $pw=[Console]::In.ReadLine(); if([string]::IsNullOrEmpty($pw)){ Out 'FAIL' @{step='password-missing'}; exit 5 }
   if(GamePid){ Out 'FAIL' @{step='game-already-running'}; exit 7 }
-  if(-not (LPids)){ Start-Process -FilePath $Exe -WorkingDirectory (Split-Path $Exe) | Out-Null; Out 'LAUNCHED' } else { Out 'ALREADY_RUNNING' }
+  if(-not (Test-Path -LiteralPath $Exe)){ Out 'FAIL' @{step='noexe'}; exit 2 }
+  if(-not (LPids)){ try{ Start-Process -FilePath $Exe -WorkingDirectory (Split-Path -LiteralPath $Exe) | Out-Null }catch{ Out 'FAIL' @{step='start'}; exit 2 }; Out 'LAUNCHED' } else { Out 'ALREADY_RUNNING' }
   $dl=(Get-Date).AddSeconds($Timeout); $h=$null
   while((Get-Date) -lt $dl){ $h=GetWin; if($h){break}; Start-Sleep -m 700 }
   if(-not $h){ Out 'FAIL' @{step='window'}; exit 2 }
@@ -52,4 +55,4 @@ try{
   if(-not $gp){ Out 'FAIL' @{step='game'}; exit 6 }
   Out 'GAME' @{pid=$gp}
   Out 'DONE'; exit 0
-} catch { Out 'ERROR' @{msg="$_"}; exit 9 }
+} catch { Out 'ERROR' @{step='error';msg="$_"}; exit 9 }

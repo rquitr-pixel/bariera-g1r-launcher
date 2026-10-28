@@ -3,3 +3,4 @@ dist/
 dist-public/
 *.log
 *.bak*
+embedded.js

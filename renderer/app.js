@@ -44,9 +44,9 @@ function drink(){let t0=performance.now();(function a(n){const k=(n-t0)/1600;FLA
 const EV={LAUNCHED:'aLaunch',ALREADY_RUNNING:'aLaunch',WINDOW:'aWin',SERVER:'aSrv',ADDRESS:'aAddr',CONNECT:'aConn',PASSWORD_SENT:'aPw',GAME:'aGame',DIRECT:'aDirect'};
 B.onAuto(m=>{if(EV[m.ev])toast(tr(EV[m.ev]),m.ev==='GAME'?4000:15000);
  if(m.ev==='FAIL'&&m.step==='rejected'){const e=$('#toast');e.textContent=tr('rejected')+' ';const b=document.createElement('button');b.className='toastBtn';b.textContent=tr('clearPw');b.onclick=async()=>{await B.forgetPw();st.hasPw=false;apply();toast(tr('pwCleared'))};e.appendChild(b);e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),30000);return}
- if(m.ev==='FAIL'||m.ev==='ERROR'){toast(tr('aFail').replace('{s}',m.step||'?'),20000);$('#pwbox').style.display='none'}});
+ if(m.ev==='FAIL'||m.ev==='ERROR'){const FM={window:'f_window',game:'f_game','game-already-running':'f_running',noexe:'f_noexe',start:'f_start',powershell:'f_ps',addtype:'f_ps'};toast((FM[m.step]?tr(FM[m.step]):tr('aFail'))+(m.step==='game-already-running'?'':tr('f_log')),25000);$('#pwbox').style.display='none'}});
 fh.onclick=async()=>{drink();const r=await B.play();
- if(!r.ok){if(r.reason==='nolauncher'){toast(tr('noLauncher'),9000);setTimeout(pick,600)}else if(r.reason==='nopassword')toast(tr('noPassword'));else if(r.reason==='notwin')toast(tr('aNotWin'));else toast(tr('spawnFail'))}
+ if(!r.ok){if(r.reason==='nolauncher'){toast(tr('noLauncher'),9000);setTimeout(pick,600)}else if(r.reason==='nopassword')toast(tr('noPassword'));else if(r.reason==='notwin')toast(tr('aNotWin'));else if(r.reason==='nops')toast(tr('f_ps'),20000);else if(r.reason==='nohelper')toast(tr('f_helper'),20000);else toast(tr('spawnFail'))}
  else if(!r.busy)toast(tr('aLaunch'),15000)};
 // drag anywhere opaque that isn't a control; click-through on transparent pixels
 const hm=new Image();hm.src='assets/hitmask.png';let hd=null;

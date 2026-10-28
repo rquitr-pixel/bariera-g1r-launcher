@@ -6,6 +6,23 @@ const SERVER = { host: '57.129.157.207', port: 7777, probePort: 7780, name: 'Bar
 // remote config (server address, links, texts) read from the public repo; cached locally for offline
 const REMOTE_CFG_URL = 'https://raw.githubusercontent.com/rquitr-pixel/bariera-g1r-launcher/main/config/serwer.json';
 let REMOTE_TEXTS = null, REMOTE_PW = '';
+// ---- dziennik launchera: %APPDATA%\\Bariera Pierwsze Lata\\launcher.log (bez haseł) ----
+function mainLog(msg) { try { const f = path.join(app.getPath('userData'), 'launcher.log'); fs.mkdirSync(path.dirname(f), { recursive: true });
+  try { if (fs.statSync(f).size > 2e6) fs.renameSync(f, f + '.old'); } catch {}
+  fs.appendFileSync(f, new Date().toISOString() + ' ' + msg + '\n'); } catch {} }
+let crashShown = false;
+function fatal(where, e) {
+  mainLog('BLAD ' + where + ': ' + (e && e.stack || e));
+  if (crashShown) return; crashShown = true;
+  try { dialog.showErrorBox('Bariera: Pierwsze Lata — błąd launchera',
+    'Coś poszło nie tak (' + where + '). Launcher spróbuje działać dalej.\n\nSzczegóły zapisałem w pliku:\n' + path.join(app.getPath('userData'), 'launcher.log') +
+    '\n\nJeśli problem wraca, wyślij ten plik na naszym Discordzie: https://discord.gg/kfBdN3ZctJ'); } catch {}
+  setTimeout(() => { crashShown = false; }, 30000);
+}
+process.on('uncaughtException', e => fatal('proces główny', e));
+process.on('unhandledRejection', e => fatal('zadanie w tle', e));
+// placeholder z publicznej konfiguracji (np. "env:...") to nie jest hasło
+const isRealPw = p => typeof p === 'string' && p.trim() !== '' && !/^env:/i.test(p.trim());
 app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 // ---- built-in links (swap SITE_URL / RULES_URL / LORE_URL when our own site is live) ----
 const SITE_URL = 'https://g1r-mp.com';
@@ -29,7 +46,7 @@ function applyRemote(r) {
   if (r.server && r.server.host) Object.assign(SERVER, r.server);
   if (r.links) { LINKS = Object.assign({}, LINKS, r.links); cfg.links = LINKS; }
   if (r.teksty) REMOTE_TEXTS = r.teksty;
-  if (typeof r.serverPassword === 'string' && r.serverPassword) {
+  if (isRealPw(r.serverPassword)) {
     // remote password changed since last seen -> drop the manual override so 'Graj' keeps working
     if (cfg.remotePwSeen && cfg.remotePwSeen !== hashPw(r.serverPassword)) { delete cfg.pwEnc; delete cfg.pwManual; }
     cfg.remotePwSeen = hashPw(r.serverPassword); REMOTE_PW = r.serverPassword; saveCfg();
@@ -37,20 +54,22 @@ function applyRemote(r) {
 }
 function fetchRemote() {
   const cache = path.join(app.getPath('userData'), 'serwer-cache.json');
+  try { applyRemote(JSON.parse(fs.readFileSync(path.join(__dirname, 'config', 'serwer.json'), 'utf8'))); } catch {}
   try { applyRemote(JSON.parse(fs.readFileSync(cache, 'utf8'))); } catch {}
   return new Promise(res => {
     const req = require('https').get(REMOTE_CFG_URL + '?t=' + Date.now(), { timeout: 5000 }, rs => {
       let b = ''; rs.on('data', d => b += d);
-      rs.on('end', () => { try { if (rs.statusCode === 200) { const j = JSON.parse(b); applyRemote(j); fs.writeFileSync(cache, b); } } catch {} res(); });
+      rs.on('end', () => { try { if (rs.statusCode === 200) { const j = JSON.parse(b); applyRemote(j); fs.writeFileSync(cache, b); mainLog('konfiguracja zdalna OK'); } else mainLog('konfiguracja zdalna HTTP ' + rs.statusCode); } catch (e) { mainLog('konfiguracja zdalna zla: ' + e.message); } res(); });
     });
-    req.on('timeout', () => req.destroy()); req.on('error', () => res());
+    req.on('timeout', () => req.destroy()); req.on('error', e => { mainLog('brak konfiguracji zdalnej (uzywam zapisanej): ' + e.message); res(); });
   });
 }
 // auto-update from GitHub releases (latest.yml), same approach as the DayZ launcher
 function setupAutoUpdate() {
   if (!app.isPackaged) return;
   let autoUpdater; try { ({ autoUpdater } = require('electron-updater')); } catch { return; }
-  autoUpdater.on('error', e => log({ ev: 'UPDATE_ERR', msg: String(e && e.message).slice(0, 200) }));
+  autoUpdater.on('error', e => { log({ ev: 'UPDATE_ERR', msg: String(e && e.message).slice(0, 200) }); mainLog('aktualizacja: ' + String(e && e.message).slice(0, 200)); });
+  autoUpdater.on('update-available', i => mainLog('dostepna aktualizacja ' + i.version));
   autoUpdater.on('update-downloaded', async i => {
     const r = await dialog.showMessageBox(win, { type: 'info', buttons: ['Uruchom ponownie teraz', 'Później'], defaultId: 0, cancelId: 1,
       title: 'Aktualizacja launchera', message: `Pobrano nową wersję launchera (${i.version}).`, detail: 'Zainstalować ją teraz? Launcher uruchomi się ponownie. Jeśli wybierzesz „Później”, aktualizacja zainstaluje się przy zamknięciu.' });
@@ -68,6 +87,7 @@ function findInDir(dir) {
     return f.length ? path.join(dir, f[0]) : null;
   } catch { return null; }
 }
+function remember(p) { if (cfg.launcherPath !== p) { cfg.launcherPath = p; saveCfg(); mainLog('znaleziono klienta: ' + p); } return p; }
 function detectLauncher() {
   if (cfg.launcherPath && fs.existsSync(cfg.launcherPath)) return cfg.launcherPath;
   if (process.platform !== 'win32') return null;
@@ -76,7 +96,13 @@ function detectLauncher() {
   const subs = ['G1RMP_Client', 'G1RMP', 'G1R-MP', 'Games\\G1RMP_Client', 'Gry\\G1RMP_Client', 'Program Files\\G1RMP', 'Program Files (x86)\\G1RMP'];
   const la = process.env.LOCALAPPDATA; if (la) subs.push(path.relative('C:\\', path.join(la, 'G1RMultiplayer')));
   for (const r of roots) { if (!fs.existsSync(r)) continue;
-    for (const s of subs) { const hit = findInDir(path.join(r, s)); if (hit) return hit; } }
+    for (const s of subs) { const hit = findInDir(path.join(r, s)); if (hit) return remember(hit); } }
+  // typowe miejsca użytkownika (także z polskimi znakami / spacjami w nazwie konta), jeden poziom w głąb
+  const home = process.env.USERPROFILE || '', extra = [la, la && path.join(la, 'Programs'), process.env.APPDATA, home && path.join(home, 'Desktop'),
+    home && path.join(home, 'Pulpit'), home && path.join(home, 'Downloads'), home && path.join(home, 'Documents'), home && path.join(home, 'Games'),
+    process.env.ProgramFiles, process.env['ProgramFiles(x86)']].filter(Boolean);
+  for (const d of extra) { let hit = findInDir(d); if (hit) return remember(hit);
+    try { for (const n of fs.readdirSync(d)) { if (!/g1r|gothic/i.test(n)) continue; hit = findInDir(path.join(d, n)); if (hit) return remember(hit); } } catch {} }
   return null;
 }
 
@@ -119,6 +145,8 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, zoomFactor: sc }
   });
   win.loadFile(path.join(__dirname, 'renderer/index.html'));
+  win.webContents.on('render-process-gone', (_e, d) => { mainLog('okno padlo: ' + d.reason); if (d.reason !== 'clean-exit') setTimeout(() => { try { win.reload(); } catch {} }, 800); });
+  app.on('child-process-gone', (_e, d) => { if (d.type === 'GPU') mainLog('GPU padlo: ' + d.reason); });
   win.once('ready-to-show', () => { win.webContents.setZoomFactor(sc); win.show();
     if (process.env.BARIERA_SHOT) setTimeout(async () => { // test hook: screenshot + simulated window moves
       const out = process.env.BARIERA_SHOT; const img = await win.webContents.capturePage(); fs.writeFileSync(out, img.toPNG());
@@ -145,7 +173,7 @@ ipcMain.on('minimize', () => win && win.minimize());
 ipcMain.on('close', () => app.quit());
 ipcMain.handle('state', () => ({
   cfg, server: SERVER, texts: REMOTE_TEXTS, launcher: detectLauncher(), fav: favouriteState(),
-  hasPw: !!(cfg.pwEnc || REMOTE_PW), autostart: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false, platform: process.platform
+  hasPw: !!(EMBED_PW || cfg.pwEnc || REMOTE_PW), autostart: process.platform === 'win32' ? app.getLoginItemSettings().openAtLogin : false, platform: process.platform
 }));
 ipcMain.handle('probe', () => probe());
 ipcMain.handle('set-cfg', (_e, patch) => { Object.assign(cfg, patch); saveCfg();
@@ -168,7 +196,9 @@ function helperPath() { const p = path.join(process.resourcesPath || '', 'helper
   return fs.existsSync(p) ? p : path.join(__dirname, 'helper', 'automate.ps1'); }
 function savedPw() { try { return cfg.pwEnc && safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(Buffer.from(cfg.pwEnc, 'base64')) : ''; } catch { return ''; } }
 // manual (user-entered) password wins; otherwise the server password from remote config; otherwise any older saved one
-function getPw() { const m = cfg.pwManual ? savedPw() : ''; return m || REMOTE_PW || savedPw(); }
+let EMBED_PW = ''; try { EMBED_PW = require('./embedded.js') || ''; } catch {}
+// hasło wbudowane w launcher wygrywa; ręczne tylko jako awaryjne (gdy wbudowane okaże się złe)
+function getPw() { const m = cfg.pwManual ? savedPw() : ''; if (cfg.embedBad !== app.getVersion() && EMBED_PW) return EMBED_PW; return m || REMOTE_PW || savedPw(); }
 // one-shot import: %APPDATA%/<app>/import_pw.txt -> encrypted store, file deleted immediately
 function importPw() { const f = path.join(app.getPath('userData'), 'import_pw.txt'); if (!fs.existsSync(f)) return;
   try { const pw = fs.readFileSync(f, 'utf8').replace(/^\uFEFF/, '').trim(); if (pw) setPw(pw); log({ ev: 'PW_IMPORTED', ok: !!cfg.pwEnc }); } catch { log({ ev: 'PW_IMPORT_FAIL' }); }
@@ -177,7 +207,7 @@ function setPw(pw) { if (pw && safeStorage.isEncryptionAvailable()) { cfg.pwEnc 
 let pwResolve = null, running = null;
 ipcMain.on('password', (_e, r) => { if (r && r.remember && r.pw) setPw(r.pw); if (pwResolve) { pwResolve(r && r.pw || ''); pwResolve = null; } });
 ipcMain.handle('forget-password', () => { delete cfg.pwEnc; delete cfg.pwManual; saveCfg(); return true; });
-ipcMain.handle('has-password', () => !!(cfg.pwEnc || REMOTE_PW));
+ipcMain.handle('has-password', () => !!(EMBED_PW || cfg.pwEnc || REMOTE_PW));
 const send = (ev, extra) => { log(Object.assign({ ev }, extra)); win && win.webContents.send('auto-ev', Object.assign({ ev }, extra)); };
 function directConnect(exe) {
   // Hook for a future official direct-connect: cfg.directConnect = { args: ["--connect","{host}:{port}"] } or { uri: "g1rmp://connect/{host}:{port}" }
@@ -198,27 +228,34 @@ ipcMain.handle('play', async () => {
   let pw = getPw();
   if (!pw) { win.restore(); win.focus(); pw = await new Promise(r => { pwResolve = r; win.webContents.send('ask-password'); }); }
   if (!pw) return { ok: false, reason: 'nopassword' };
-  const ps = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', helperPath(),
-    '-Exe', exe, '-ServerName', cfg.serverName || 'Bariera', '-Address', addr, '-Timeout', '45', '-AfterGame', cfg.afterGame || 'minimize'],
-    { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  const hp = helperPath();
+  if (!fs.existsSync(hp)) { mainLog('brak helper/automate.ps1: ' + hp); return { ok: false, reason: 'nohelper' }; }
+  const psExe = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  mainLog('start: ' + exe);
+  let ps; try { ps = spawn(fs.existsSync(psExe) ? psExe : 'powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', hp,
+    '-Exe', exe, '-ServerName', cfg.serverName || 'Bariera', '-Address', addr, '-Timeout', '120', '-AfterGame', cfg.afterGame || 'minimize'],
+    { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] }); } catch (e) { mainLog('nie moge uruchomic PowerShell: ' + e.message); return { ok: false, reason: 'nops' }; }
+  ps.on('error', e => { running = null; mainLog('PowerShell blad: ' + e.message); send('FAIL', { step: 'powershell' }); });
+  ps.stdin.on('error', () => {});
   running = ps; let buf = '';
   ps.stdin.write(pw + '\n'); pw = null;
   ps.stdout.on('data', async d => { buf += d; let i;
     while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!line) continue;
       let m; try { m = JSON.parse(line); } catch { log({ raw: line }); continue; }
       send(m.ev, m);
-      if (m.ev === 'FAIL' && m.step === 'rejected' && win) { win.restore(); win.focus(); }
+      if (m.ev === 'FAIL' && m.step === 'rejected' && win) { if (EMBED_PW) { cfg.embedBad = app.getVersion(); saveCfg(); mainLog('wbudowane haslo odrzucone - nastepnym razem zapytam'); } win.restore(); win.focus(); }
       if (m.ev === 'GAME') setTimeout(() => win && win.minimize(), 1500);
       if (m.ev === 'FAIL' && m.step === 'game-already-running' && win) { win.restore(); win.focus(); }
     } });
-  ps.stderr.on('data', d => log({ stderr: String(d).slice(0, 400) }));
-  ps.on('exit', code => { running = null; send('EXIT', { code }); });
+  ps.stderr.on('data', d => { log({ stderr: String(d).slice(0, 400) }); mainLog('PS: ' + String(d).slice(0, 400).replace(/\s+/g, ' ')); });
+  ps.on('exit', code => { running = null; mainLog('automatyzacja zakonczona, kod ' + code); if (code && ![0, 2, 5, 6, 7, 9].includes(code)) send('FAIL', { step: 'powershell' }); send('EXIT', { code }); });
   return { ok: true, auto: true };
 });
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => { if (win) { win.restore(); win.focus(); } });
-  app.whenReady().then(async () => { loadCfg(); await fetchRemote(); importPw(); createWindow(); setupAutoUpdate(); });
+  app.disableHardwareAcceleration && process.argv.includes('--bez-gpu') && app.disableHardwareAcceleration();
+  app.whenReady().then(async () => { mainLog('=== start ' + app.getVersion() + ' | ' + process.platform + ' ' + require('os').release() + ' | ' + (app.isPackaged ? process.execPath : 'dev')); loadCfg(); await fetchRemote(); importPw(); createWindow(); setupAutoUpdate(); });
   app.on('window-all-closed', () => app.quit());
 }
